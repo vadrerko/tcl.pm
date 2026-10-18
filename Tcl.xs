@@ -561,7 +561,9 @@ SvFromTclObj(pTHX_ Tcl_Obj *objPtr)
 	 * We have to watch for "empty" lists, which could equate to the
 	 * empty string.  Tcl's literal object sharing means that "" could
 	 * be typed as a list, although we don't want to see it that way.
-	 * Just treat empty list objects as an empty (not undef) SV.
+	 * The same goes for whitespace-only strings such as " ", which
+	 * also parse as empty lists, so return the string value of empty
+	 * list objects rather than "" (for "" itself this is the same).
 	 */
 	Tcl_Size objc;
 	Tcl_Obj **objv;
@@ -577,7 +579,7 @@ SvFromTclObj(pTHX_ Tcl_Obj *objPtr)
 	    sv = sv_bless(newRV_noinc((SV *) av), gv_stashpv("Tcl::List", 1));
 	}
 	else {
-	    sv = newSVpvn("", 0);
+	    goto handle_as_string;
 	}
     }
     /* tclStringTypePtr is true unicode */

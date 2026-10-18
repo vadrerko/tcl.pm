@@ -15,7 +15,7 @@ sub D_P_Dump {
     }
 }
 
-BEGIN { plan tests => 6; }
+BEGIN { plan tests => 11; }
 
 use Tcl;
 
@@ -101,3 +101,31 @@ else {
     ok(1);
 }
 
+
+# A whitespace-only string parses as an empty list, so once it has been
+# used as a list it has an empty-list internal representation while its
+# string value is still the whitespace.  It must reach Perl as that string,
+# not as "".
+{
+    # Command result
+    ok($i->Eval('set ws " \t\n"; llength $ws; set ws'), " \t\n");
+
+    # Variable
+    ok($i->GetVar('ws'), " \t\n");
+
+    # Argument to a Perl command.  Tcl shares literals between compiled
+    # scripts, so an unrelated [llength { }] anywhere in the interpreter
+    # (or any "proc name { } ..." with an empty argument list) turns the
+    # shared " " literal into an empty list; this is how Tcl::pTk key
+    # bindings lost %A for the Space key.
+    my @args;
+    $i->CreateCommand('ws_arg', sub { push @args, $_[3] });
+    $i->Eval('proc ws_shimmer {} { llength { } }');
+    $i->Eval('proc ws_call {} { ws_arg { } }');
+    $i->Eval('ws_shimmer; ws_call');
+    ok($args[0], ' ');
+
+    # Still true empty strings and empty lists
+    ok($i->Eval('set e ""; llength $e; set e'), '');
+    ok($i->Eval('list'), '');
+}
